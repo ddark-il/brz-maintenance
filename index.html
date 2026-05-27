@@ -218,8 +218,8 @@ const SCHEDULES = [
   { item: "Driveshaft & center bearing", partKey: ["propshaft", "center-bearing"],                          intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
   { item: "Engine / transmission mounts", partKey: ["trans-mount-mt"],                                      intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
   { item: "Wheel bearing play",      partKey: ["wheel-bearing"],                                            intervalKm: 97000, type: "inspect", inSchedules: ["subaru"] },
-  { item: "Wiper blades",            partKey: ["wiper-driver", "wiper-pass"],                               intervalKm: 24000, timeNote: "or annually", type: "inspect", inSchedules: ["subaru"] },
-  { item: "12V battery",             partKey: ["battery"],                                                   intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Wiper blades",            partKey: ["wiper-driver", "wiper-pass"],                               intervalKm: 24000, timeNote: "or annually", type: "inspect", inSchedules: ["subaru"], skipCsgOverlay: true },
+  { item: "12V battery",             partKey: ["battery"],                                                   intervalKm: 24000, type: "inspect", inSchedules: ["subaru"], skipCsgOverlay: true },
 ];
 
 /* =========================================================
@@ -370,11 +370,12 @@ function render() {
   // Build the primary list — items whose inSchedules includes the current view
   const primary = SCHEDULES.filter(s => s.inSchedules.includes(view));
 
-  // Overlay: when on CSG views, also surface Subaru inspect items with scaled intervals
+  // Overlay: when on CSG views, also surface Subaru inspect items with scaled intervals.
+  // Items flagged skipCsgOverlay (wear-based, time-based) don't get scaled and are excluded.
   const overlay = (view === "subaru")
     ? []
     : SCHEDULES
-        .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru"))
+        .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru") && !s.skipCsgOverlay)
         .map(s => ({ ...s, intervalKm: scaleInspectKm(s.intervalKm, view), _overlay: true }));
 
   const bucketed = { overdue: [], "coming-up": [], later: [] };
