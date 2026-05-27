@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Subaru BRZ Maintenance Calculator (1st gen, FA20)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small custom touches Tailwind utility classes don't cover cleanly */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chevron { transform: rotate(90deg); }
+    .chevron { transition: transform 0.15s ease; }
+    .copy-btn:active { transform: scale(0.92); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased">
+
+<header class="bg-blue-700 text-white">
+  <div class="max-w-2xl mx-auto px-4 py-5">
+    <h1 class="text-2xl font-bold">Subaru BRZ Maintenance Calculator</h1>
+    <p class="text-blue-100 text-sm mt-1">1st gen, FA20 (ZC6) · 2013–2020 · Israeli-spec, Limited trim</p>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-4 py-6 space-y-6">
+
+  <!-- Current km input -->
+  <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+    <label for="km" class="block text-sm font-medium text-gray-700">Current odometer (km)</label>
+    <input
+      id="km"
+      type="number"
+      inputmode="numeric"
+      min="0"
+      step="1000"
+      placeholder="e.g. 78000"
+      class="mt-2 w-full text-3xl font-mono px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+    >
+    <p class="text-xs text-gray-500 mt-2">Shows when each item is next due assuming it was last done on schedule. Adjust your km up or down to see what's actually coming.</p>
+  </section>
+
+  <!-- Schedule toggle -->
+  <section>
+    <div class="text-sm font-medium text-gray-700 mb-2">Maintenance schedule</div>
+    <div id="schedule-toggle" class="inline-flex rounded-lg border border-gray-300 bg-white p-1 shadow-sm w-full">
+      <button data-view="subaru"     class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">Subaru Factory</button>
+      <button data-view="csg-street" class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">CSG Street</button>
+      <button data-view="csg-track"  class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">CSG Track / Boosted</button>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section id="results" class="space-y-5">
+    <p class="text-center text-gray-500 py-10">Enter your current km to see what's coming up.</p>
+  </section>
+
+  <!-- Footer -->
+  <footer class="pt-6 mt-6 border-t border-gray-200 text-xs text-gray-500 space-y-2">
+    <p>
+      Sources:
+      <a class="underline hover:text-blue-700" href="https://www.counterspacegarage.com/blog/toyota-86-subaru-brz/recommended-maintenance-guide-for-toyota-86-subaru-brz/" target="_blank" rel="noopener">CSG maintenance guide</a> ·
+      <a class="underline hover:text-blue-700" href="https://www.cars101.com/subaru/maintenance-2018.html" target="_blank" rel="noopener">cars101 Subaru schedule</a> ·
+      <a class="underline hover:text-blue-700" href="https://www.ft86club.com/forums/showthread.php?t=79867" target="_blank" rel="noopener">FT86Club OEM PN megathread</a> ·
+      <a class="underline hover:text-blue-700" href="https://www.motul.com/en-HR/products/60350" target="_blank" rel="noopener">Subaru by Motul 5W-30</a>
+    </p>
+    <p>Specs reflect the Israeli-market 1st-gen BRZ Limited (5W-30 oil, pre-facelift air filter spec, Brembo front brakes). Part numbers compiled from public sources — verify with a Subaru/Toyota dealer using your VIN before ordering.</p>
+    <p><strong>OEM-supplier PNs</strong> (Denso, Exedy, Aisin, KYB, NGK, Akebono, NTN, Bando) are the same physical parts as the dealer-boxed versions, sold directly by the original manufacturer — typically 30–60% cheaper.</p>
+  </footer>
+
+</main>
+
+<script>
+/* =========================================================
+   PARTS — keyed lookup of part numbers.
+   Each part has 4 columns: subaru | toyota | oem | spec/notes.
+   ========================================================= */
+const PARTS = {
+  // Israeli spec: Subaru by Motul 5W-30, full synthetic — Subaru's official OEM-branded oil
+  // for the Israeli/EU market (Motul-manufactured, Subaru-warranty-covered).
+  "engine-oil": [
+    { name: "Subaru by Motul 5W-30 (1 L or 5 L)", subaru: "Subaru by Motul 5W-30", toyota: null, oem: "Motul SKU 103172",
+      spec: "5W-30, API SP, ACEA C2, 100% synthetic, fuel-economy, low SAPS", qty: "5.6 L (with filter change)",
+      note: "Official Subaru-branded oil for the Israeli market — Subaru-by-Motul co-branded product. Carries Subaru genuine-warranty coverage." },
+  ],
+  "oil-filter":     [{ name: "Engine oil filter", subaru: "15208AA130", toyota: "90915-YZZS1", oem: null,
+                       spec: "OEM cartridge", note: "Toyota 90915-YZZS1 is Denso-made; sold only via dealer (no bare Denso PN for this application)." }],
+  "air-filter":     [{ name: "Engine air filter (Israeli-market spec — pre-facelift)", subaru: "16546AA10A", toyota: "17801-YZZ03", oem: null,
+                       spec: "Pleated paper, Denso-made",
+                       note: "Israeli BRZ kept the 2013-2016 air-filter spec through end of production — do NOT use the US 2017+ Toyota PN SU003-06405. Toyota 17801-YZZ03 is the same physical Denso filter as the Subaru-boxed 16546AA10A." }],
+  "cabin-filter":   [{ name: "Cabin air filter", subaru: "72880FG000 (also 72880-AJ010)", toyota: "88568-37020", oem: null, spec: "OEM" }],
+  "spark-plugs":    [
+    { name: "Spark plug (×4) — Subaru-supplied", subaru: "22401AA670", toyota: null, oem: "NGK SILFR6A11 (#5468)",
+      spec: "Iridium, HR7", note: "Newer Subaru PN: 22401AA801. NGK is the OEM behind the Subaru box — buy the bare NGK plug for typically half the dealer price." },
+    { name: "Spark plug (×4) — Toyota-supplied", subaru: null, toyota: "SU003-04931", oem: "Denso ZXE27HBR8 (#3536)",
+      spec: "Iridium, HR7", note: "Denso is the OEM behind the Toyota box — same plug, cheaper as bare Denso. Functionally equivalent to the NGK above." },
+  ],
+  "brake-fluid":    [{ name: "Brake fluid (also clutch)", subaru: "SOA868V9220", toyota: "08823-80250", oem: null,
+                       spec: "DOT 3 (factory) / DOT 4 acceptable",
+                       note: "Toyota 500 mL bottle; Subaru PN equivalent. Newer Toyota designation: 00475-1BF03." }],
+  "mt-fluid":       [{ name: "Manual trans fluid", subaru: "SOA427V1700", toyota: "08885-02506", oem: null,
+                       spec: "75W-85 GL-4 (Toyota 'Gear Oil LT')", qty: "2.6 L",
+                       note: "MUST be GL-4, not GL-5 — the FA20 6MT has brass/copper synchros and GL-5's EP additives can corrode them. Toyota's spec is the safer reference. Subaru 'Extra MT' (SOA427V1700) is labeled GL-5 75W-90 but Toyota's GL-4 is the safer fluid. Popular synthetic alternative: Redline MT-90 (75W-90, GL-4) — well-regarded by the FT86 community for synchro feel and longevity." }],
+  "diff-fluid":     [{ name: "Rear diff fluid", subaru: "SOA427V1800", toyota: "08885-03106", oem: null,
+                       spec: "75W-90 GL-5 (straight — no friction modifier needed)", qty: "1.4 L",
+                       note: "BRZ uses a Torsen (helical gear-type) LSD, not a clutch-pack LSD. Torsen does NOT need friction-modifier 'LSD-compatible' oil — straight GL-5 is what it wants. Toyota 08885-03106 (Super GL-5) is the right call." }],
+  "coolant":        [{ name: "Long-life coolant (pre-mixed 50/50)", subaru: "SOA868V9270", toyota: "00272-SLLC2", oem: null,
+                       spec: "Subaru Super Coolant (blue) / Toyota Super Long Life (pink) — both long-life OAT-hybrid, cross-compatible chemistry. Do NOT mix colors in one fill.",
+                       qty: "6.4 L total system" }],
+  "fuel-pump":      [{ name: "In-tank fuel pump assembly", subaru: "42021CA010", toyota: null, oem: "Denso 950-0218 / 953-3070",
+                       spec: "Includes integrated filter",
+                       note: "Denso is the OEM supplier — bare Denso module is significantly cheaper than the Subaru-boxed assembly." }],
+  "front-pads":     [{ name: "Front brake pads (Brembo)", subaru: "26296FE100", toyota: "SU003-07199", oem: "Akebono ACT1539 (ceramic)",
+                       spec: "For 294 mm Brembo front brakes (Limited trim)",
+                       note: "Akebono is the OEM pad supplier for Toyota — same friction, fraction of the dealer price." }],
+  "rear-pads":      [{ name: "Rear brake pads", subaru: "26696CA000", toyota: "SU003-04097", oem: "Akebono (cross-ref via SU003-04097)", spec: "—" }],
+  "rear-rotors":    [{ name: "Rear brake rotor", subaru: "26700CA000", toyota: "SU003-10629", oem: null, spec: "Vented" }],
+  "front-rotors":   [{ name: "Front brake rotor (Brembo)", subaru: "26300FE001", toyota: null, oem: null,
+                       spec: "294 mm vented (Limited trim — Brembo 4-piston caliper)" }],
+  "wiper-driver":   [{ name: "Front wiper, driver (22\")", subaru: "SOA591U522", toyota: null, oem: null, spec: "22 in" }],
+  "wiper-pass":     [{ name: "Front wiper, passenger (20\")", subaru: "SOA591U420", toyota: null, oem: null, spec: "20 in" }],
+  "battery":        [{ name: "12V battery", subaru: null, toyota: null, oem: null,
+                       spec: "48 Ah (factory) / 60 Ah (recommended upgrade for accessory load) — any reputable group-fit battery in this Ah range. No specific PN — buy locally." }],
+
+  // Suspension / drivetrain
+  "front-ball-joint": [{ name: "Front lower ball joint", subaru: "20206CA000", toyota: null, oem: null, spec: "—",
+                         note: "Not sold separately on later years — may require whole control arm." }],
+  "outer-tie-rod":  [{ name: "Front outer tie rod end (L/R)", subaru: "34161CA010 / 34161CA000", toyota: "SU00300834 / SU00300833", oem: null, spec: "L/R-specific" }],
+  "lower-ctrl-arm": [{ name: "Front lower control arm (R/L)", subaru: "20202CA002 / 20202CA012", toyota: "SU00300354 / SU00300355", oem: null, spec: "L/R-specific" }],
+  "front-endlink":  [{ name: "Front sway bar end link", subaru: "20420CA000", toyota: "SU00300394", oem: null, spec: "—" }],
+  "rear-endlink":   [{ name: "Rear sway bar end link", subaru: "20470AJ000", toyota: null, oem: null, spec: "—" }],
+  "front-strut":    [{ name: "Front strut assembly (L/R)", subaru: "20310CA220 (R, 2017+)", toyota: "SU003-10821 (2013-16) / SU003-10823 (2017-20)", oem: "KYB Excel-G 339370 (L) / 339369 (R)",
+                       spec: "Year/side variants — verify with VIN", note: "KYB is the OEM strut supplier — Excel-G is the OE replacement line." }],
+  "rear-shock":     [{ name: "Rear shock absorber", subaru: "20365CA110 / CA210 / CA231", toyota: "SU003-06796 / SU003-06797 (L assy)", oem: "KYB SR4611 (assembly)", spec: "Year/trim variants" }],
+  "strut-mount":    [{ name: "Front strut mount + bearing", subaru: "20320AA112 / AA113", toyota: null, oem: null, spec: "L/R" }],
+  "wheel-bearing":  [
+    { name: "Front wheel hub bearing", subaru: null, toyota: null, oem: "NTN HUB497T-1 / WE60543", spec: "—" },
+    { name: "Rear wheel hub bearing", subaru: "28473FL020 (complete hub)", toyota: null, oem: "NTN HUB552T-2 / HUB503", spec: "—" },
+  ],
+  "rear-axle":      [{ name: "Rear half-shaft / drive axle (L/R)", subaru: "28421CA000", toyota: "SU003-00785", oem: null, spec: "Complete CV assembly" }],
+  "propshaft":      [{ name: "Propeller shaft (front-to-rear)", subaru: "27111CA010 (6AT)", toyota: "SU003-00658 (2013-20)", oem: null, spec: "6MT Subaru PN differs — verify with dealer" }],
+  "center-bearing": [{ name: "Driveshaft center support bearing", subaru: "27037AA000 / AA010", toyota: null, oem: null, spec: "Taper roller or ball variant" }],
+  "clutch-kit":     [
+    { name: "Complete OEM clutch kit (disc + pressure plate + throwout + pilot + alignment tool)",
+      subaru: null, toyota: null, oem: "Exedy FJK1005",
+      spec: "Single SKU covers everything below — easiest and cheapest way to buy.",
+      note: "Exedy is the OEM clutch supplier for FA20. One kit replaces all the individual dealer-boxed parts." },
+    { name: "Clutch disc (individual)", subaru: "30100AA870", toyota: "SU003-00799", oem: "Exedy (in FJK1005)", spec: "—" },
+    { name: "Clutch pressure plate (individual)", subaru: "30210AA670", toyota: null, oem: "Exedy (in FJK1005)", spec: "—" },
+    { name: "Release / throwout bearing (individual)", subaru: "30502AA150", toyota: "SU003-07349", oem: "Exedy (in FJK1005)",
+      spec: "Current PN — supersedes older 30502AA051; fits all 2013+ BRZ/FR-S/86." },
+    { name: "Clutch pilot bearing (individual)", subaru: null, toyota: "SU003-07232", oem: "Exedy (in FJK1005)", spec: "—" },
+    { name: "Clutch slave cylinder", subaru: null, toyota: "SU00305863", oem: null, spec: "Not included in clutch kit — order separately if replacing." },
+  ],
+  "water-pump":     [{ name: "Water pump + gasket", subaru: null, toyota: null, oem: "Aisin WPF-027", spec: "—",
+                       note: "Aisin is the OEM water pump supplier for Subaru — buy Aisin direct, much cheaper." }],
+  "thermostat":     [{ name: "Thermostat + gasket", subaru: "21210AA181 / AA180", toyota: "SU003-08993 (housing)", oem: "Aisin THF-007",
+                       spec: "Toyota PN is the housing — thermostat insert sold separately on Toyota side. Aisin THF-007 is the bare OE thermostat." }],
+  "drive-belt":     [{ name: "Accessory drive belt", subaru: "809221180", toyota: "SU003-02202", oem: "Bando 6PK2070 / Continental 4060815 / Gates K060815",
+                       spec: "V-belt 21×4×2070", note: "Bando is the original Subaru OE supplier." }],
+  "belt-idler":     [{ name: "Belt idler pulley", subaru: "23770AA070 / AA090", toyota: null, oem: null, spec: "—" }],
+  "radiator-cap":   [{ name: "Radiator cap", subaru: "45137AJ000 / AJ001", toyota: "SU003-10341", oem: null, spec: "—" }],
+  "trans-mount-mt": [{ name: "Rear / transmission mount (MT)", subaru: "41020CA000", toyota: null, oem: null, spec: "MT only" }],
+  "exh-manifold-gasket": [{ name: "Exhaust manifold gasket", subaru: "44011AC030", toyota: null, oem: null, spec: "2013-2017" }],
+  "af-sensor":      [{ name: "Upstream A/F (wideband) sensor", subaru: "22641AA640", toyota: null, oem: "Denso 234-9136",
+                       spec: "Pre-cat", note: "Denso is the OE supplier — bare Denso PN is typically 40-60% off the Subaru dealer price." }],
+  "o2-sensor":      [{ name: "Downstream O2 sensor", subaru: "22690AB000", toyota: null, oem: "Denso 234-4908",
+                       spec: "Post-cat", note: "Denso OE — same supplier as Subaru-boxed, much cheaper." }],
+};
+
+/* =========================================================
+   SCHEDULES — when each item is due, per schedule.
+   ========================================================= */
+const SCHEDULES = [
+  // Engine oil — three variants per schedule
+  { item: "Engine oil & filter", partKey: ["engine-oil", "oil-filter"], intervalKm: 12000, timeNote: "or 7.5 months", type: "replace", inSchedules: ["subaru"],     notes: "Subaru factory: 7,500 mi" },
+  { item: "Engine oil & filter", partKey: ["engine-oil", "oil-filter"], intervalKm:  8000, timeNote: "or 6 months",   type: "replace", inSchedules: ["csg-street"], notes: "CSG street: 5,000 mi (lower bound)" },
+  { item: "Engine oil & filter", partKey: ["engine-oil", "oil-filter"], intervalKm:  5000, timeNote: "or 25 engine hours", type: "replace", inSchedules: ["csg-track"], notes: "CSG track: 3,000 mi" },
+
+  // Common replacement items
+  { item: "Engine air filter",   partKey: ["air-filter"],    intervalKm: 48000, type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "Inspect yearly if dusty" },
+  { item: "Cabin air filter",    partKey: ["cabin-filter"],  intervalKm: 24000, timeNote: "or annually", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"] },
+
+  // Brake / clutch fluid
+  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru"] },
+  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year",  type: "replace", inSchedules: ["csg-street"] },
+  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year — inspect every track day, replace every 20 circuit hrs", type: "replace", inSchedules: ["csg-track"] },
+  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru"], notes: "Same fluid as brake" },
+  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year",  type: "replace", inSchedules: ["csg-street", "csg-track"] },
+
+  // Gear oils
+  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 48000, type: "replace", inSchedules: ["subaru"], notes: "Severe schedule only — factory normal has no MT interval" },
+  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 50000, type: "replace", inSchedules: ["csg-street"] },
+  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 16000, timeNote: "or every 5 events (every event if boosted / hot climate)", type: "replace", inSchedules: ["csg-track"] },
+  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 48000, type: "replace", inSchedules: ["subaru"], notes: "Severe — normal is inspect-only" },
+  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 50000, type: "replace", inSchedules: ["csg-street"] },
+  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 16000, timeNote: "or every 10 events / when LSD feels degraded", type: "replace", inSchedules: ["csg-track"] },
+
+  // Plugs, coolant, fuel
+  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 97000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Iridium" },
+  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 50000, type: "replace", inSchedules: ["csg-track"] },
+  { item: "Coolant (first change)",    partKey: ["coolant"], intervalKm: 221000, timeNote: "or 11 years", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"] },
+  { item: "Coolant (subsequent)",      partKey: ["coolant"], intervalKm: 121000, timeNote: "or 6 years",  type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "After first change at 221k km" },
+  { item: "Fuel pump (includes filter)", partKey: ["fuel-pump"], intervalKm: 160000, type: "replace", inSchedules: ["csg-street", "csg-track"], notes: "Filter is integrated — replace whole assembly" },
+  { item: "Boost system check",        partKey: [],          intervalKm: 5000,  type: "inspect", inSchedules: ["csg-track"], notes: "At every oil change — hoses, clamps, BOV, supercharger belt if applicable" },
+
+  // Inspect-only items (Subaru factory — also surfaced on CSG views with scaled intervals)
+  { item: "Brake pads & rotors",     partKey: ["front-pads", "rear-pads", "front-rotors", "rear-rotors"], intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Brake hoses & lines",     partKey: [],                                                          intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Suspension (ball joints, tie-rods, struts)", partKey: ["front-ball-joint", "outer-tie-rod", "lower-ctrl-arm", "front-strut", "rear-shock", "strut-mount"], intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Sway bar end links",      partKey: ["front-endlink", "rear-endlink"],                            intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "CV / axle boots",         partKey: ["rear-axle"],                                                intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Drive belt",              partKey: ["drive-belt", "belt-idler"],                                 intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Cooling hoses, cap, thermostat, water pump", partKey: ["radiator-cap", "thermostat", "water-pump"], intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Fuel lines",              partKey: [],                                                            intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Exhaust system & hangers", partKey: ["exh-manifold-gasket", "af-sensor", "o2-sensor"],           intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Clutch (release bearing, hydraulics)", partKey: ["clutch-kit"],                                  intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Driveshaft & center bearing", partKey: ["propshaft", "center-bearing"],                          intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Engine / transmission mounts", partKey: ["trans-mount-mt"],                                      intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Wheel bearing play",      partKey: ["wheel-bearing"],                                            intervalKm: 97000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Wiper blades",            partKey: ["wiper-driver", "wiper-pass"],                               intervalKm: 24000, timeNote: "or annually", type: "inspect", inSchedules: ["subaru"] },
+  { item: "12V battery",             partKey: ["battery"],                                                   intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
+];
+
+/* =========================================================
+   Inspect-interval extrapolation (Subaru → CSG views)
+   Scale Subaru inspect intervals to CSG's faster rhythm so
+   they land naturally between fluid changes.
+   ========================================================= */
+const CSG_INSPECT_SCALE = { "csg-street": 0.67, "csg-track": 0.42 };
+const scaleInspectKm = (subaruKm, view) =>
+  Math.round((subaruKm * (CSG_INSPECT_SCALE[view] ?? 1)) / 1000) * 1000;
+
+/* =========================================================
+   State + helpers
+   ========================================================= */
+const state = { km: null, view: "csg-street" };
+
+const KM_PER_MILE = 1.609344;
+const kmToMi = km => Math.round(km / KM_PER_MILE);
+const fmtKm = km => km.toLocaleString("en-US") + " km";
+const fmtMi = km => kmToMi(km).toLocaleString("en-US") + " mi";
+
+function computeBucket(currentKm, intervalKm) {
+  // New car / empty input → all "later" with kmUntilDue = full interval
+  if (!currentKm || currentKm <= 0) return { kmUntilDue: intervalKm, bucket: "later" };
+  const remainder = currentKm % intervalKm;
+  if (remainder === 0) return { kmUntilDue: 0, bucket: "overdue" };
+  const kmUntilDue = intervalKm - remainder;
+  if (kmUntilDue <= 5000) return { kmUntilDue, bucket: "coming-up" };
+  return { kmUntilDue, bucket: "later" };
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+const $results = document.getElementById("results");
+const $kmInput = document.getElementById("km");
+const $toggle = document.getElementById("schedule-toggle");
+
+function chip(text, cls) {
+  return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}">${text}</span>`;
+}
+
+function sourceChip(view) {
+  if (view === "subaru") return chip("Subaru", "bg-blue-100 text-blue-800");
+  return chip("CSG", "bg-purple-100 text-purple-800");
+}
+
+function typeChip(type) {
+  return type === "replace"
+    ? chip("Replace", "border border-rose-300 text-rose-700")
+    : chip("Inspect", "border border-emerald-300 text-emerald-700");
+}
+
+function partsHtml(partKeys) {
+  if (!partKeys || partKeys.length === 0) {
+    return `<p class="text-sm text-gray-500 italic">No specific part number — visual inspection only.</p>`;
+  }
+  const parts = partKeys.flatMap(k => PARTS[k] || []);
+  if (parts.length === 0) return "";
+  return parts.map(p => {
+    const cells = [
+      pnCell("Subaru", p.subaru, "text-blue-700"),
+      pnCell("Toyota", p.toyota, "text-red-700"),
+      pnCell("OEM",    p.oem,    "text-emerald-700 font-bold"),
+    ].join("");
+    return `
+      <div class="border border-gray-200 rounded-md p-3 bg-gray-50 space-y-2">
+        <div class="font-medium text-sm text-gray-900">${escapeHtml(p.name)}</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">${cells}</div>
+        ${p.spec    ? `<div class="text-xs text-gray-600"><span class="font-medium">Spec:</span> ${escapeHtml(p.spec)}</div>` : ""}
+        ${p.qty     ? `<div class="text-xs text-gray-600"><span class="font-medium">Quantity:</span> ${escapeHtml(p.qty)}</div>` : ""}
+        ${p.note    ? `<div class="text-xs text-gray-500 italic">${escapeHtml(p.note)}</div>` : ""}
+      </div>`;
+  }).join("");
+}
+
+function pnCell(label, pn, valueCls) {
+  if (!pn) {
+    return `
+      <div class="text-xs">
+        <div class="text-gray-500 font-medium uppercase tracking-wide text-[10px]">${label}</div>
+        <div class="text-gray-400">—</div>
+      </div>`;
+  }
+  return `
+    <div class="text-xs">
+      <div class="text-gray-500 font-medium uppercase tracking-wide text-[10px]">${label}</div>
+      <div class="flex items-start gap-1">
+        <span class="${valueCls} font-mono text-xs leading-tight break-all">${escapeHtml(pn)}</span>
+        <button type="button" class="copy-btn shrink-0 text-gray-400 hover:text-gray-700 text-xs leading-none mt-0.5" data-copy="${escapeAttr(pn)}" title="Copy">📋</button>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+function rowHtml(item, kmUntilDue, intervalKm, sourceView) {
+  const bucket = computeBucket(state.km, intervalKm).bucket;
+  const dueLabel =
+    bucket === "overdue"   ? `<span class="text-rose-700 font-bold">Due now</span>` :
+    bucket === "coming-up" ? `<span class="text-amber-700 font-semibold">in ${fmtKm(kmUntilDue)}</span>` :
+                             `<span class="text-gray-500">in ${fmtKm(kmUntilDue)}</span>`;
+
+  const timeChip = item.timeNote ? chip(`⏱ ${item.timeNote}`, "bg-gray-100 text-gray-700") : "";
+  const note = item.notes ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(item.notes)}</div>` : "";
+  const parts = partsHtml(item.partKey);
+
+  return `
+    <details class="bg-white rounded-md border border-gray-200">
+      <summary class="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 rounded-md">
+        <span class="chevron text-gray-400 text-sm mt-0.5">▶</span>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-medium text-gray-900">${escapeHtml(item.item)}</span>
+            ${sourceChip(sourceView)}
+            ${typeChip(item.type)}
+            ${timeChip}
+          </div>
+          <div class="text-sm mt-1">
+            ${dueLabel}
+            <span class="text-gray-400 text-xs ml-2">· every ${fmtKm(intervalKm)} <span class="text-gray-300">(${fmtMi(intervalKm)})</span></span>
+          </div>
+          ${note}
+        </div>
+      </summary>
+      <div class="px-4 pb-4 pt-1 space-y-2 border-t border-gray-100">
+        ${parts || `<p class="text-sm text-gray-500 italic">No parts listed.</p>`}
+      </div>
+    </details>`;
+}
+
+function sectionHtml(title, items, cls) {
+  if (!items.length) return "";
+  return `
+    <section>
+      <h2 class="text-sm font-bold uppercase tracking-wide ${cls} mb-2">${title} <span class="text-gray-400 font-normal normal-case">· ${items.length}</span></h2>
+      <div class="space-y-2">${items.map(x => x.html).join("")}</div>
+    </section>`;
+}
+
+function render() {
+  const view = state.view;
+  const km = state.km;
+
+  // Build the primary list — items whose inSchedules includes the current view
+  const primary = SCHEDULES.filter(s => s.inSchedules.includes(view));
+
+  // Overlay: when on CSG views, also surface Subaru inspect items with scaled intervals
+  const overlay = (view === "subaru")
+    ? []
+    : SCHEDULES
+        .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru"))
+        .map(s => ({ ...s, intervalKm: scaleInspectKm(s.intervalKm, view), _overlay: true }));
+
+  const bucketed = { overdue: [], "coming-up": [], later: [] };
+
+  const all = [
+    ...primary.map(s => ({ ...s, _source: "primary" })),
+    ...overlay.map(s => ({ ...s, _source: "overlay" })),
+  ];
+
+  for (const item of all) {
+    const { kmUntilDue, bucket } = computeBucket(km, item.intervalKm);
+    bucketed[bucket].push({
+      kmUntilDue,
+      sourceView: item._source === "overlay" ? "subaru" : view,
+      html: rowHtml(
+        item,
+        kmUntilDue,
+        item.intervalKm,
+        item._source === "overlay" ? "subaru" : (view === "subaru" ? "subaru" : "csg"),
+      ),
+    });
+  }
+
+  for (const b of Object.keys(bucketed)) bucketed[b].sort((a, b) => a.kmUntilDue - b.kmUntilDue);
+
+  const overlayBanner = (view !== "subaru" && overlay.length)
+    ? `<p class="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-md p-3">
+         <strong>CSG's published schedule is replacement-focused.</strong> The Subaru factory inspect items are also surfaced here, with intervals scaled to CSG's faster rhythm (×${CSG_INSPECT_SCALE[view]}) so they land naturally between fluid changes.
+       </p>`
+    : "";
+
+  const empty = (km === null || isNaN(km))
+    ? `<p class="text-center text-gray-500 py-10">Enter your current km to see what's coming up.</p>`
+    : "";
+
+  $results.innerHTML = empty || [
+    overlayBanner,
+    sectionHtml("Due now / Overdue", bucketed.overdue,   "text-rose-700"),
+    sectionHtml("Coming up next",    bucketed["coming-up"], "text-amber-700"),
+    sectionHtml("Later",             bucketed.later,      "text-gray-600"),
+  ].join("");
+}
+
+/* =========================================================
+   Wiring
+   ========================================================= */
+let debounce;
+$kmInput.addEventListener("input", () => {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => {
+    const v = $kmInput.value.trim();
+    state.km = v === "" ? null : Math.max(0, parseInt(v, 10) || 0);
+    render();
+  }, 150);
+});
+
+function setView(view) {
+  state.view = view;
+  for (const btn of $toggle.querySelectorAll("button")) {
+    const active = btn.dataset.view === view;
+    btn.className = `flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+      active ? "bg-blue-700 text-white shadow" : "text-gray-700 hover:bg-gray-100"
+    }`;
+  }
+  render();
+}
+
+$toggle.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-view]");
+  if (btn) setView(btn.dataset.view);
+});
+
+// Click-to-copy delegation
+$results.addEventListener("click", async e => {
+  const btn = e.target.closest(".copy-btn");
+  if (!btn) return;
+  e.preventDefault();
+  const pn = btn.dataset.copy;
+  try {
+    await navigator.clipboard.writeText(pn);
+    const orig = btn.textContent;
+    btn.textContent = "✓";
+    btn.classList.add("text-emerald-600");
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove("text-emerald-600"); }, 1200);
+  } catch {
+    btn.textContent = "✗";
+    setTimeout(() => { btn.textContent = "📋"; }, 1200);
+  }
+});
+
+// Initial render
+setView(state.view);
+</script>
+
+</body>
+</html>
