@@ -27,17 +27,20 @@
 
   <!-- Current km input -->
   <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-    <label for="km" class="block text-sm font-medium text-gray-700">Current odometer (km)</label>
-    <input
-      id="km"
-      type="number"
-      inputmode="numeric"
-      min="0"
-      step="1000"
-      placeholder="e.g. 78000"
-      class="mt-2 w-full text-3xl font-mono px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-    >
-    <p class="text-xs text-gray-500 mt-2">Shows when each item is next due assuming it was last done on schedule. Adjust your km up or down to see what's actually coming.</p>
+    <label for="km" class="block text-sm font-medium text-gray-700">Current odometer <span class="text-gray-500 font-normal">(×1,000 km)</span></label>
+    <div class="mt-2 relative">
+      <input
+        id="km"
+        type="number"
+        inputmode="decimal"
+        min="0"
+        step="1"
+        placeholder="e.g. 78"
+        class="w-full text-3xl font-mono px-3 py-2 pr-24 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+      >
+      <span class="absolute inset-y-0 right-3 flex items-center text-gray-400 text-sm font-medium pointer-events-none">× 1,000 km</span>
+    </div>
+    <p id="km-resolved" class="text-xs text-gray-500 mt-2">Type your odometer in thousands of km. Example: 78 → 78,000 km.</p>
   </section>
 
   <!-- Schedule toggle -->
@@ -447,12 +450,17 @@ function render() {
 /* =========================================================
    Wiring
    ========================================================= */
+const $kmResolved = document.getElementById("km-resolved");
 let debounce;
 $kmInput.addEventListener("input", () => {
   clearTimeout(debounce);
   debounce = setTimeout(() => {
     const v = $kmInput.value.trim();
-    state.km = v === "" ? null : Math.max(0, parseInt(v, 10) || 0);
+    const parsed = v === "" ? null : Math.max(0, parseFloat(v) || 0);
+    state.km = parsed === null ? null : Math.round(parsed * 1000);
+    $kmResolved.textContent = parsed === null
+      ? "Type your odometer in thousands of km. Example: 78 → 78,000 km."
+      : `= ${state.km.toLocaleString("en-US")} km (${kmToMi(state.km).toLocaleString("en-US")} mi)`;
     render();
   }, 150);
 });
