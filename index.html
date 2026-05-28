@@ -214,7 +214,7 @@ const SCHEDULES = [
   { item: "Manual trans fluid",  partKey: ["mt-fluid"],                  firstDueKm: 30000, intervalKm: 20000, type: "replace", inSchedules: ["ddark"], notes: "Phase-shifted +10k from the original 20k cadence (last done at 170k): 30, 50, 70, …, 170, 190, 210." },
   { item: "Rear diff fluid",     partKey: ["diff-fluid"],                firstDueKm: 30000, intervalKm: 20000, type: "replace", inSchedules: ["ddark"], notes: "Phase-shifted +10k (paired with MT fluid above): last done at 170k, next at 190k." },
   { item: "Engine air filter",   partKey: ["air-filter"],                firstDueKm: 30000, intervalKm: 20000, type: "replace", inSchedules: ["ddark"], notes: "Phase-shifted +10k to stay bundled with MT + diff fluid: 30, 50, 70, …, 170, 190." },
-  { item: "Cabin air filter",    partKey: ["cabin-filter"],              intervalKm: 24000, timeNote: "or annually", type: "replace", inSchedules: ["ddark"] },
+  { item: "Cabin air filter",    partKey: ["cabin-filter"],              intervalKm: 50000, type: "replace", inSchedules: ["ddark"], notes: "ddark cadence — longer than factory's annual/24k recommendation" },
   { item: "Clutch (full assembly)", partKey: ["clutch-kit"],             intervalKm: 100000, type: "replace", inSchedules: ["ddark"], notes: "Preventive replacement of the complete Exedy kit" },
   { item: "Coolant",             partKey: ["coolant"],                   firstDueKm: 100000, intervalKm: 50000, type: "replace", inSchedules: ["ddark"], notes: "ddark: first at 100k km, then every 50k km" },
 
