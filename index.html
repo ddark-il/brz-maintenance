@@ -80,12 +80,17 @@
    Each part has 4 columns: subaru | toyota | oem | spec/notes.
    ========================================================= */
 const PARTS = {
-  // Israeli spec: Subaru by Motul 5W-30, full synthetic — Subaru's official OEM-branded oil
-  // for the Israeli/EU market (Motul-manufactured, Subaru-warranty-covered).
+  // Engine oil — per-view: Subaru/CSG views use Subaru-by-Motul 5W-30 (Israeli OEM spec).
+  // The ddark view runs 0W-30 for sustained boosted/hot use — wider temperature window.
   "engine-oil": [
     { name: "Subaru by Motul 5W-30 (1 L or 5 L)", subaru: "Subaru by Motul 5W-30", toyota: null, oem: "Motul SKU 103172",
       spec: "5W-30, API SP, ACEA C2, 100% synthetic, fuel-economy, low SAPS", qty: "5.6 L (with filter change)",
-      note: "Official Subaru-branded oil for the Israeli market — Subaru-by-Motul co-branded product. Carries Subaru genuine-warranty coverage." },
+      note: "Official Subaru-branded oil for the Israeli market — Subaru-by-Motul co-branded product. Carries Subaru genuine-warranty coverage.",
+      views: ["subaru", "csg-street", "csg-track"] },
+    { name: "Engine oil 0W-30 (ddark recommendation)", subaru: null, toyota: null, oem: "Motul 8100 X-clean+ 0W-30 / Castrol Edge 0W-30 / Mobil 1 ESP 0W-30",
+      spec: "0W-30, API SN+, ACEA C3 preferred — full synthetic", qty: "5.6 L (with filter change)",
+      note: "ddark spec — 0W-30 for sustained hot-climate boosted use. Wider temperature window than 5W-30 with similar high-temp film. The Subaru-by-Motul 5W-30 stays a valid alternative.",
+      views: ["ddark"] },
   ],
   "oil-filter":     [{ name: "Engine oil filter", subaru: "15208AA130", toyota: "90915-YZZS1", oem: null,
                        spec: "OEM cartridge", note: "Toyota 90915-YZZS1 is Denso-made; sold only via dealer (no bare Denso PN for this application)." }],
@@ -102,12 +107,31 @@ const PARTS = {
   "brake-fluid":    [{ name: "Brake fluid (also clutch)", subaru: "SOA868V9220", toyota: "08823-80250", oem: null,
                        spec: "DOT 3 (factory) / DOT 4 acceptable",
                        note: "Toyota 500 mL bottle; Subaru PN equivalent. Newer Toyota designation: 00475-1BF03." }],
-  "mt-fluid":       [{ name: "Manual trans fluid", subaru: "SOA427V1700", toyota: "08885-02506", oem: null,
-                       spec: "75W-85 GL-4 (Toyota 'Gear Oil LT')", qty: "2.6 L",
-                       note: "MUST be GL-4, not GL-5 — the FA20 6MT has brass/copper synchros and GL-5's EP additives can corrode them. Toyota's spec is the safer reference. Subaru 'Extra MT' (SOA427V1700) is labeled GL-5 75W-90 but Toyota's GL-4 is the safer fluid. Popular synthetic alternative: Redline MT-90 (75W-90, GL-4) — well-regarded by the FT86 community for synchro feel and longevity." }],
-  "diff-fluid":     [{ name: "Rear diff fluid", subaru: "SOA427V1800", toyota: "08885-03106", oem: null,
-                       spec: "75W-90 GL-5 (straight — no friction modifier needed)", qty: "1.4 L",
-                       note: "BRZ uses a Torsen (helical gear-type) LSD, not a clutch-pack LSD. Torsen does NOT need friction-modifier 'LSD-compatible' oil — straight GL-5 is what it wants. Toyota 08885-03106 (Super GL-5) is the right call." }],
+  // Manual trans fluid — per-view: Subaru/CSG views use the dealer GL-4 (Toyota's spec for the
+  // brass-synchro FA20 6MT). ddark uses Redline MT-90 — synthetic GL-4, popular in the FT86
+  // community for synchro feel and longevity.
+  "mt-fluid": [
+    { name: "Manual trans fluid", subaru: "SOA427V1700", toyota: "08885-02506", oem: null,
+      spec: "75W-85 GL-4 (Toyota 'Gear Oil LT')", qty: "2.6 L",
+      note: "MUST be GL-4, not GL-5 — the FA20 6MT has brass/copper synchros and GL-5's EP additives can corrode them. Toyota's spec is the safer reference. Subaru 'Extra MT' (SOA427V1700) is labeled GL-5 75W-90 but Toyota's GL-4 is the safer fluid.",
+      views: ["subaru", "csg-street", "csg-track"] },
+    { name: "Manual trans fluid — Redline MT-90 (ddark)", subaru: null, toyota: null, oem: "Redline MT-90",
+      spec: "75W-90 GL-4, GTL synthetic", qty: "2.6 L (~3 quart bottles)",
+      note: "ddark spec — synthetic GL-4 well-regarded for the FA20 6MT. Better synchro feel and shift quality vs the dealer mineral fluid, especially in cold starts.",
+      views: ["ddark"] },
+  ],
+  // Rear diff fluid — per-view: Subaru/CSG views use Toyota's straight GL-5 75W-90 (Torsen LSD
+  // doesn't need friction modifiers). ddark steps up to 75W-140 for high-load boosted use.
+  "diff-fluid": [
+    { name: "Rear diff fluid", subaru: "SOA427V1800", toyota: "08885-03106", oem: null,
+      spec: "75W-90 GL-5 (straight — no friction modifier needed)", qty: "1.4 L",
+      note: "BRZ uses a Torsen (helical gear-type) LSD, not a clutch-pack LSD. Torsen does NOT need friction-modifier 'LSD-compatible' oil — straight GL-5 is what it wants. Toyota 08885-03106 (Super GL-5) is the right call.",
+      views: ["subaru", "csg-street", "csg-track"] },
+    { name: "Rear diff fluid — 75W-140 (ddark)", subaru: null, toyota: null, oem: "Redline 75W-140 NS / Motul Gear 300 75W-140",
+      spec: "75W-140 GL-5, straight (no friction modifier — Torsen)", qty: "1.4 L",
+      note: "ddark spec — heavier viscosity than the 75W-90 default. Targets sustained high-load boosted use where the diff sees more heat. 'NS' on the Redline label = non-slip-additive (correct for Torsen).",
+      views: ["ddark"] },
+  ],
   "coolant":        [{ name: "Long-life coolant (pre-mixed 50/50)", subaru: "SOA868V9270", toyota: "00272-SLLC2", oem: null,
                        spec: "Subaru Super Coolant (blue) / Toyota Super Long Life (pink) — both long-life OAT-hybrid, cross-compatible chemistry. Do NOT mix colors in one fill.",
                        qty: "6.4 L total system" }],
@@ -319,11 +343,14 @@ function chip(text, cls) {
   return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}">${text}</span>`;
 }
 
-function partsHtml(partKeys) {
+function partsHtml(partKeys, view) {
   if (!partKeys || partKeys.length === 0) {
     return `<p class="text-sm text-gray-500 italic">No specific part number — visual inspection only.</p>`;
   }
-  const parts = partKeys.flatMap(k => PARTS[k] || []);
+  // Per-view PARTS filtering: an entry with `views: [...]` only shows on those views.
+  // Entries without `views` show everywhere.
+  const parts = partKeys.flatMap(k => PARTS[k] || [])
+    .filter(p => !p.views || p.views.includes(view));
   if (parts.length === 0) return "";
   return parts.map(p => {
     const cells = [
@@ -371,7 +398,7 @@ function replaceItemHtml(item) {
     ? `<span class="text-[10px] text-gray-400 uppercase tracking-wide">Subaru, scaled</span>`
     : "";
   const note = item.notes ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(item.notes)}</div>` : "";
-  const parts = partsHtml(item.partKey);
+  const parts = partsHtml(item.partKey, state.view);
   return `
     <details class="bg-gray-50 rounded-md border border-gray-200">
       <summary class="px-3 py-2 flex items-start gap-2 hover:bg-gray-100 rounded-md">
