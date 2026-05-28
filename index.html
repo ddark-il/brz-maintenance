@@ -353,15 +353,21 @@ function partsHtml(partKeys, view) {
     .filter(p => !p.views || p.views.includes(view));
   if (parts.length === 0) return "";
   return parts.map(p => {
-    const cells = [
-      pnCell("Subaru", p.subaru, "text-blue-700"),
-      pnCell("Toyota", p.toyota, "text-red-700"),
-      pnCell("OEM",    p.oem,    "text-emerald-700 font-bold"),
-    ].join("");
+    // Per-part column filtering: only render PN cells that have values. Cards where
+    // all three are null still render with no PN row (just the name + spec + note).
+    const candidates = [
+      ["Subaru", p.subaru, "text-blue-700"],
+      ["Toyota", p.toyota, "text-red-700"],
+      ["OEM",    p.oem,    "text-emerald-700 font-bold"],
+    ].filter(([_, pn]) => pn != null);
+    const gridCls = candidates.length === 1 ? "grid grid-cols-1 gap-2"
+                  : candidates.length === 2 ? "grid grid-cols-1 sm:grid-cols-2 gap-2"
+                  :                           "grid grid-cols-1 sm:grid-cols-3 gap-2";
+    const cells = candidates.map(([label, pn, cls]) => pnCell(label, pn, cls)).join("");
     return `
       <div class="border border-gray-200 rounded-md p-3 bg-gray-50 space-y-2">
         <div class="font-medium text-sm text-gray-900">${escapeHtml(p.name)}</div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">${cells}</div>
+        ${cells ? `<div class="${gridCls}">${cells}</div>` : ""}
         ${p.spec    ? `<div class="text-xs text-gray-600"><span class="font-medium">Spec:</span> ${escapeHtml(p.spec)}</div>` : ""}
         ${p.qty     ? `<div class="text-xs text-gray-600"><span class="font-medium">Quantity:</span> ${escapeHtml(p.qty)}</div>` : ""}
         ${p.note    ? `<div class="text-xs text-gray-500 italic">${escapeHtml(p.note)}</div>` : ""}
