@@ -114,9 +114,14 @@ const PARTS = {
   "fuel-pump":      [{ name: "In-tank fuel pump assembly", subaru: "42021CA010", toyota: null, oem: "Denso 950-0218 / 953-3070",
                        spec: "Includes integrated filter",
                        note: "Denso is the OEM supplier — bare Denso module is significantly cheaper than the Subaru-boxed assembly." }],
-  "rotrex-oil":     [{ name: "Rotrex Traction Fluid SX150", subaru: null, toyota: null, oem: "Rotrex SX150",
-                       spec: "Centrifugal supercharger traction fluid", qty: "0.8 L",
-                       note: "For Rotrex superchargers only — Subaru/Toyota dealers do not stock this. Inspect the supercharger drive belt at every oil change." }],
+  "rotrex-oil":     [
+    { name: "Rotrex Traction Fluid SX150", subaru: null, toyota: null, oem: "Rotrex SX150",
+      spec: "Centrifugal supercharger traction fluid", qty: "0.8 L",
+      note: "For Rotrex superchargers only — Subaru/Toyota dealers do not stock this. Inspect the supercharger drive belt at every oil change." },
+    { name: "Rotrex oil filter", subaru: null, toyota: null, oem: "Rotrex",
+      spec: "Replace with the traction fluid", qty: "1 unit",
+      note: "CSG recommends swapping the filter at every Rotrex fluid change." },
+  ],
   "front-pads":     [{ name: "Front brake pads (Brembo)", subaru: "26296FE100", toyota: "SU003-07199", oem: "Akebono ACT1539 (ceramic)",
                        spec: "For 294 mm Brembo front brakes (Limited trim)",
                        note: "Akebono is the OEM pad supplier for Toyota — same friction, fraction of the dealer price." }],
@@ -206,6 +211,7 @@ const SCHEDULES = [
   { item: "Coolant", partKey: ["coolant"], firstDueKm: 221000, intervalKm: 121000, timeNote: "first at 11 yrs, then every 6 yrs", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "First change at 221k km, then every 121k km thereafter" },
   { item: "Fuel pump (includes filter)", partKey: ["fuel-pump"], intervalKm: 160000, type: "replace", inSchedules: ["csg-street", "csg-track"], notes: "Filter is integrated — replace whole assembly" },
   { item: "Boost system check",        partKey: [],          intervalKm: 5000,  type: "inspect", inSchedules: ["csg-track"], notes: "At every oil change — hoses, clamps, BOV, supercharger belt if applicable" },
+  { item: "Rotrex supercharger oil",   partKey: ["rotrex-oil"], intervalKm: 80000, timeNote: "or every 2 years", type: "replace", inSchedules: ["csg-track"], notes: "Per CSG: Rotrex traction fluid + oil filter together (50,000 mi / 2 yr) — supercharger-only" },
 
   // ddark schedule — user's personal middle-ground (between Subaru factory and CSG street),
   // assumes Rotrex-supercharged BRZ Limited driven hard but not tracked
