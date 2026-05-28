@@ -47,9 +47,10 @@
   <section>
     <div class="text-sm font-medium text-gray-700 mb-2">Maintenance schedule</div>
     <div id="schedule-toggle" class="inline-flex rounded-lg border border-gray-300 bg-white p-1 shadow-sm w-full">
-      <button data-view="subaru"     class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">Subaru Factory</button>
-      <button data-view="csg-street" class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">CSG Street</button>
-      <button data-view="csg-track"  class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors">CSG Track / Boosted</button>
+      <button data-view="subaru"     class="flex-1 px-2 py-2 text-sm font-medium rounded-md transition-colors">Subaru</button>
+      <button data-view="ddark"      class="flex-1 px-2 py-2 text-sm font-medium rounded-md transition-colors">ddark</button>
+      <button data-view="csg-street" class="flex-1 px-2 py-2 text-sm font-medium rounded-md transition-colors">CSG Street</button>
+      <button data-view="csg-track"  class="flex-1 px-2 py-2 text-sm font-medium rounded-md transition-colors">CSG Track</button>
     </div>
   </section>
 
@@ -113,6 +114,9 @@ const PARTS = {
   "fuel-pump":      [{ name: "In-tank fuel pump assembly", subaru: "42021CA010", toyota: null, oem: "Denso 950-0218 / 953-3070",
                        spec: "Includes integrated filter",
                        note: "Denso is the OEM supplier — bare Denso module is significantly cheaper than the Subaru-boxed assembly." }],
+  "rotrex-oil":     [{ name: "Rotrex Traction Fluid SX100", subaru: null, toyota: null, oem: "Rotrex SX100",
+                       spec: "Centrifugal supercharger traction fluid", qty: "~0.3 L",
+                       note: "For Rotrex superchargers only — Subaru/Toyota dealers do not stock this. Inspect the supercharger drive belt at every oil change." }],
   "front-pads":     [{ name: "Front brake pads (Brembo)", subaru: "26296FE100", toyota: "SU003-07199", oem: "Akebono ACT1539 (ceramic)",
                        spec: "For 294 mm Brembo front brakes (Limited trim)",
                        note: "Akebono is the OEM pad supplier for Toyota — same friction, fraction of the dealer price." }],
@@ -185,26 +189,34 @@ const SCHEDULES = [
   { item: "Cabin air filter",    partKey: ["cabin-filter"],  intervalKm: 24000, timeNote: "or annually", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"] },
 
   // Brake / clutch fluid
-  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru"] },
-  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year",  type: "replace", inSchedules: ["csg-street"] },
+  { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru", "csg-street"] },
   { item: "Brake fluid",         partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year — inspect every track day, replace every 20 circuit hrs", type: "replace", inSchedules: ["csg-track"] },
-  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru"], notes: "Same fluid as brake" },
-  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year",  type: "replace", inSchedules: ["csg-street", "csg-track"] },
+  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 48000, timeNote: "or 2 years", type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Same fluid as brake" },
+  { item: "Clutch fluid",        partKey: ["brake-fluid"],   intervalKm: 50000, timeNote: "or 1 year",  type: "replace", inSchedules: ["csg-track"] },
 
   // Gear oils
-  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 48000, type: "replace", inSchedules: ["subaru"], notes: "Severe schedule only — factory normal has no MT interval" },
-  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 50000, type: "replace", inSchedules: ["csg-street"] },
+  { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 48000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Subaru: severe-schedule only; CSG street: every 30,000 mi" },
   { item: "Manual trans fluid",  partKey: ["mt-fluid"],      intervalKm: 16000, timeNote: "or every 5 events (every event if boosted / hot climate)", type: "replace", inSchedules: ["csg-track"] },
-  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 48000, type: "replace", inSchedules: ["subaru"], notes: "Severe — normal is inspect-only" },
-  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 50000, type: "replace", inSchedules: ["csg-street"] },
+  { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 48000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Subaru: severe-only; CSG street: every 30,000 mi" },
   { item: "Rear diff fluid",     partKey: ["diff-fluid"],    intervalKm: 16000, timeNote: "or every 10 events / when LSD feels degraded", type: "replace", inSchedules: ["csg-track"] },
 
   // Plugs, coolant, fuel
-  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 97000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Iridium" },
-  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 50000, type: "replace", inSchedules: ["csg-track"] },
+  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 96000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Iridium — aligned with the 96k big-service milestone" },
+  { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 50000, type: "replace", inSchedules: ["csg-track", "ddark"] },
   { item: "Coolant", partKey: ["coolant"], firstDueKm: 221000, intervalKm: 121000, timeNote: "first at 11 yrs, then every 6 yrs", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "First change at 221k km, then every 121k km thereafter" },
   { item: "Fuel pump (includes filter)", partKey: ["fuel-pump"], intervalKm: 160000, type: "replace", inSchedules: ["csg-street", "csg-track"], notes: "Filter is integrated — replace whole assembly" },
   { item: "Boost system check",        partKey: [],          intervalKm: 5000,  type: "inspect", inSchedules: ["csg-track"], notes: "At every oil change — hoses, clamps, BOV, supercharger belt if applicable" },
+
+  // ddark schedule — user's personal middle-ground (between Subaru factory and CSG street),
+  // assumes Rotrex-supercharged BRZ Limited driven hard but not tracked
+  { item: "Engine oil & filter", partKey: ["engine-oil", "oil-filter"], intervalKm: 10000, type: "replace", inSchedules: ["ddark"], notes: "ddark: every 10,000 km" },
+  { item: "Rotrex supercharger oil", partKey: ["rotrex-oil"],           intervalKm: 30000, type: "replace", inSchedules: ["ddark"], notes: "Rotrex traction fluid — supercharger-specific" },
+  { item: "Manual trans fluid",  partKey: ["mt-fluid"],                  intervalKm: 20000, type: "replace", inSchedules: ["ddark"] },
+  { item: "Rear diff fluid",     partKey: ["diff-fluid"],                intervalKm: 20000, type: "replace", inSchedules: ["ddark"] },
+  { item: "Engine air filter",   partKey: ["air-filter"],                intervalKm: 20000, type: "replace", inSchedules: ["ddark"], notes: "ddark cadence — more frequent than factory" },
+  { item: "Cabin air filter",    partKey: ["cabin-filter"],              intervalKm: 24000, timeNote: "or annually", type: "replace", inSchedules: ["ddark"] },
+  { item: "Clutch (full assembly)", partKey: ["clutch-kit"],             intervalKm: 100000, type: "replace", inSchedules: ["ddark"], notes: "Preventive replacement of the complete Exedy kit" },
+  { item: "Coolant",             partKey: ["coolant"],                   firstDueKm: 100000, intervalKm: 50000, type: "replace", inSchedules: ["ddark"], notes: "ddark: first at 100k km, then every 50k km" },
 
   // Inspect-only items (Subaru factory — also surfaced on CSG views with scaled intervals)
   { item: "Brake pads & rotors",     partKey: ["front-pads", "rear-pads", "front-rotors", "rear-rotors"], intervalKm: 24000, type: "inspect", inSchedules: ["subaru"] },
@@ -219,7 +231,7 @@ const SCHEDULES = [
   { item: "Clutch (release bearing, hydraulics)", partKey: ["clutch-kit"],                                  intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
   { item: "Driveshaft & center bearing", partKey: ["propshaft", "center-bearing"],                          intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
   { item: "Engine / transmission mounts", partKey: ["trans-mount-mt"],                                      intervalKm: 48000, type: "inspect", inSchedules: ["subaru"] },
-  { item: "Wheel bearing play",      partKey: ["wheel-bearing"],                                            intervalKm: 97000, type: "inspect", inSchedules: ["subaru"] },
+  { item: "Wheel bearing play",      partKey: ["wheel-bearing"],                                            intervalKm: 96000, type: "inspect", inSchedules: ["subaru"] },
   { item: "Wiper blades",            partKey: ["wiper-driver", "wiper-pass"],                               intervalKm: 24000, timeNote: "or annually", type: "inspect", inSchedules: ["subaru"], skipCsgOverlay: true },
   { item: "12V battery",             partKey: ["battery"],                                                   intervalKm: 24000, type: "inspect", inSchedules: ["subaru"], skipCsgOverlay: true },
 ];
@@ -229,9 +241,12 @@ const SCHEDULES = [
    Scale Subaru inspect intervals to CSG's faster rhythm so
    they land naturally between fluid changes.
    ========================================================= */
-const CSG_INSPECT_SCALE = { "csg-street": 0.67, "csg-track": 0.42 };
+// Scale factors for the Subaru inspect-item overlay on non-Subaru views.
+// Derived from the oil-interval ratio vs Subaru (12k): ddark 10k → 0.83,
+// csg-street 8k → 0.67, csg-track 5k → 0.42.
+const INSPECT_OVERLAY_SCALE = { "ddark": 0.83, "csg-street": 0.67, "csg-track": 0.42 };
 const scaleInspectKm = (subaruKm, view) =>
-  Math.round((subaruKm * (CSG_INSPECT_SCALE[view] ?? 1)) / 1000) * 1000;
+  Math.round((subaruKm * (INSPECT_OVERLAY_SCALE[view] ?? 1)) / 1000) * 1000;
 
 /* =========================================================
    State + helpers
@@ -252,10 +267,13 @@ const MAX_KM = 500000;
 
 function getItemsForView(view) {
   if (view === "subaru") return SCHEDULES.filter(s => s.inSchedules.includes("subaru"));
-  // CSG views: replace items from the view + overlay of Subaru inspect items at scaled intervals
+  // Non-Subaru views: their own replace items + overlay of Subaru inspect items at scaled intervals.
+  // skipCsgOverlay items (wipers, battery) are excluded from CSG views only — they still show on
+  // ddark because it's the user's primary day-to-day schedule and they want full visibility.
   const primary = SCHEDULES.filter(s => s.inSchedules.includes(view));
   const overlay = SCHEDULES
-    .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru") && !s.skipCsgOverlay)
+    .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru")
+      && !(s.skipCsgOverlay && view.startsWith("csg-")))
     .map(s => ({ ...s, intervalKm: scaleInspectKm(s.intervalKm, view), _overlay: true }));
   return [...primary, ...overlay];
 }
@@ -428,10 +446,13 @@ function render() {
   const milestones = getMilestones(view);
   const { current, next } = pickCards(milestones, km);
 
-  const overlayBanner = (view !== "subaru")
-    ? `<p class="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-md p-3">
-         <strong>CSG's published schedule is replacement-focused.</strong> Subaru factory inspect items are surfaced here at intervals scaled to CSG's faster rhythm (×${CSG_INSPECT_SCALE[view]}); wiper blades and battery aren't scaled and only appear on the Subaru view.
-       </p>`
+  const banners = {
+    "ddark":     `<strong>ddark schedule.</strong> Custom middle-ground between the Subaru factory schedule and CSG. Subaru inspect items (including wipers + battery) are overlaid at intervals scaled ×0.83 to match the 10,000 km oil cadence.`,
+    "csg-street": `<strong>CSG's published schedule is replacement-focused.</strong> Subaru factory inspect items are surfaced here at intervals scaled ×0.67 to match CSG's faster rhythm; wiper blades and battery aren't scaled and only appear on the Subaru view.`,
+    "csg-track":  `<strong>CSG Track / Boosted schedule.</strong> Subaru factory inspect items are scaled ×0.42 to match the 5,000 km oil cadence; wiper blades and battery aren't scaled and only appear on the Subaru view.`,
+  };
+  const overlayBanner = banners[view]
+    ? `<p class="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-md p-3">${banners[view]}</p>`
     : "";
 
   const cards = `
