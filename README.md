@@ -2,7 +2,7 @@
 
 Single-page static calculator for **Subaru BRZ 1st gen (FA20, ZC6, 2013–2020)** maintenance intervals.
 
-Type your current odometer (km) → pick a schedule → see what's due now, coming up, or later. Each row expands to show OEM part numbers from Subaru, Toyota, and the underlying OEM supplier (Denso, Exedy, Aisin, KYB, NGK, Akebono, NTN, Bando).
+Type your current odometer (km) → pick a schedule → see two cards: the **last service milestone** you passed (or are currently at) and the **next** one coming up. Each card shows replace items with OEM part numbers (Subaru / Toyota / OEM-supplier — Denso, Exedy, Aisin, KYB, NGK, Akebono, NTN, Bando) and a plain checklist of inspect items.
 
 ## Run it
 
@@ -45,7 +45,7 @@ CSG's published schedule is replacement-focused (it doesn't enumerate every fact
 ## Caveats
 
 - Part numbers were collected from public sources. Verify with a Subaru/Toyota dealer using your VIN before ordering — especially for items with year/trim splits (front struts split at the 2017 facelift, etc.).
-- The calculator assumes each item was last serviced on its interval boundary (no per-item "last done at km X" tracking). For a long-overdue item, the calculator will show the *next* boundary, not how far past you are.
+- The "current" milestone is the most recent km on the schedule that's ≤ your odometer, "next" is the smallest > your odometer. Multiple items naturally cluster on the same milestone (e.g., at 48,000 km the Subaru schedule hits oil + air filter + brake fluid + clutch fluid + many inspects together).
 - Time-based triggers (brake fluid every 2 years, coolant every 6 years, cabin filter annually) are shown as text chips but not computed against a date. Reset the clock yourself.
 
 ## Out of scope

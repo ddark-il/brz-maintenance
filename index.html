@@ -199,8 +199,7 @@ const SCHEDULES = [
   // Plugs, coolant, fuel
   { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 97000, type: "replace", inSchedules: ["subaru", "csg-street"], notes: "Iridium" },
   { item: "Spark plugs",         partKey: ["spark-plugs"],   intervalKm: 50000, type: "replace", inSchedules: ["csg-track"] },
-  { item: "Coolant (first change)",    partKey: ["coolant"], intervalKm: 221000, timeNote: "or 11 years", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"] },
-  { item: "Coolant (subsequent)",      partKey: ["coolant"], intervalKm: 121000, timeNote: "or 6 years",  type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "After first change at 221k km" },
+  { item: "Coolant", partKey: ["coolant"], firstDueKm: 221000, intervalKm: 121000, timeNote: "first at 11 yrs, then every 6 yrs", type: "replace", inSchedules: ["subaru", "csg-street", "csg-track"], notes: "First change at 221k km, then every 121k km thereafter" },
   { item: "Fuel pump (includes filter)", partKey: ["fuel-pump"], intervalKm: 160000, type: "replace", inSchedules: ["csg-street", "csg-track"], notes: "Filter is integrated — replace whole assembly" },
   { item: "Boost system check",        partKey: [],          intervalKm: 5000,  type: "inspect", inSchedules: ["csg-track"], notes: "At every oil change — hoses, clamps, BOV, supercharger belt if applicable" },
 
@@ -241,14 +240,43 @@ const kmToMi = km => Math.round(km / KM_PER_MILE);
 const fmtKm = km => km.toLocaleString("en-US") + " km";
 const fmtMi = km => kmToMi(km).toLocaleString("en-US") + " mi";
 
-function computeBucket(currentKm, intervalKm) {
-  // New car / empty input → all "later" with kmUntilDue = full interval
-  if (!currentKm || currentKm <= 0) return { kmUntilDue: intervalKm, bucket: "later" };
-  const remainder = currentKm % intervalKm;
-  if (remainder === 0) return { kmUntilDue: 0, bucket: "overdue" };
-  const kmUntilDue = intervalKm - remainder;
-  if (kmUntilDue <= 5000) return { kmUntilDue, bucket: "coming-up" };
-  return { kmUntilDue, bucket: "later" };
+/* =========================================================
+   Items + milestones — group every item-due event by its
+   absolute km, so we can show the user the "current" and
+   "next" service milestones as two cards.
+   ========================================================= */
+const MAX_KM = 500000;
+
+function getItemsForView(view) {
+  if (view === "subaru") return SCHEDULES.filter(s => s.inSchedules.includes("subaru"));
+  // CSG views: replace items from the view + overlay of Subaru inspect items at scaled intervals
+  const primary = SCHEDULES.filter(s => s.inSchedules.includes(view));
+  const overlay = SCHEDULES
+    .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru") && !s.skipCsgOverlay)
+    .map(s => ({ ...s, intervalKm: scaleInspectKm(s.intervalKm, view), _overlay: true }));
+  return [...primary, ...overlay];
+}
+
+function getMilestones(view) {
+  const items = getItemsForView(view);
+  const byKm = new Map();
+  for (const item of items) {
+    const start = item.firstDueKm ?? item.intervalKm;
+    for (let km = start; km <= MAX_KM; km += item.intervalKm) {
+      if (!byKm.has(km)) byKm.set(km, []);
+      byKm.get(km).push(item);
+    }
+  }
+  return [...byKm.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([km, items]) => ({ km, items }));
+}
+
+function pickCards(milestones, currentKm) {
+  if (currentKm === null || isNaN(currentKm)) return { current: null, next: milestones[0] ?? null };
+  const current = [...milestones].reverse().find(m => m.km <= currentKm) ?? null;
+  const next = milestones.find(m => m.km > currentKm) ?? null;
+  return { current, next };
 }
 
 /* =========================================================
@@ -260,17 +288,6 @@ const $toggle = document.getElementById("schedule-toggle");
 
 function chip(text, cls) {
   return `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}">${text}</span>`;
-}
-
-function sourceChip(view) {
-  if (view === "subaru") return chip("Subaru", "bg-blue-100 text-blue-800");
-  return chip("CSG", "bg-purple-100 text-purple-800");
-}
-
-function typeChip(type) {
-  return type === "replace"
-    ? chip("Replace", "border border-rose-300 text-rose-700")
-    : chip("Inspect", "border border-emerald-300 text-emerald-700");
 }
 
 function partsHtml(partKeys) {
@@ -319,104 +336,112 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
-function rowHtml(item, kmUntilDue, intervalKm, sourceView) {
-  const bucket = computeBucket(state.km, intervalKm).bucket;
-  const dueLabel =
-    bucket === "overdue"   ? `<span class="text-rose-700 font-bold">Due now</span>` :
-    bucket === "coming-up" ? `<span class="text-amber-700 font-semibold">in ${fmtKm(kmUntilDue)}</span>` :
-                             `<span class="text-gray-500">in ${fmtKm(kmUntilDue)}</span>`;
-
+function replaceItemHtml(item) {
   const timeChip = item.timeNote ? chip(`⏱ ${item.timeNote}`, "bg-gray-100 text-gray-700") : "";
+  const sourceTag = item._overlay
+    ? `<span class="text-[10px] text-gray-400 uppercase tracking-wide">Subaru, scaled</span>`
+    : "";
   const note = item.notes ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(item.notes)}</div>` : "";
   const parts = partsHtml(item.partKey);
-
   return `
-    <details class="bg-white rounded-md border border-gray-200">
-      <summary class="px-4 py-3 flex items-start gap-3 hover:bg-gray-50 rounded-md">
+    <details class="bg-gray-50 rounded-md border border-gray-200">
+      <summary class="px-3 py-2 flex items-start gap-2 hover:bg-gray-100 rounded-md">
         <span class="chevron text-gray-400 text-sm mt-0.5">▶</span>
         <div class="flex-1 min-w-0">
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-medium text-gray-900">${escapeHtml(item.item)}</span>
-            ${sourceChip(sourceView)}
-            ${typeChip(item.type)}
             ${timeChip}
-          </div>
-          <div class="text-sm mt-1">
-            ${dueLabel}
-            <span class="text-gray-400 text-xs ml-2">· every ${fmtKm(intervalKm)} <span class="text-gray-300">(${fmtMi(intervalKm)})</span></span>
+            ${sourceTag}
           </div>
           ${note}
         </div>
       </summary>
-      <div class="px-4 pb-4 pt-1 space-y-2 border-t border-gray-100">
+      <div class="px-3 pb-3 pt-1 space-y-2 border-t border-gray-200">
         ${parts || `<p class="text-sm text-gray-500 italic">No parts listed.</p>`}
       </div>
     </details>`;
 }
 
-function sectionHtml(title, items, cls) {
-  if (!items.length) return "";
+function inspectListHtml(items) {
   return `
-    <section>
-      <h2 class="text-sm font-bold uppercase tracking-wide ${cls} mb-2">${title} <span class="text-gray-400 font-normal normal-case">· ${items.length}</span></h2>
-      <div class="space-y-2">${items.map(x => x.html).join("")}</div>
-    </section>`;
+    <ul class="text-sm text-gray-700 space-y-1.5">
+      ${items.map(i => `
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-500 mt-0.5 shrink-0">✓</span>
+          <span class="flex-1">${escapeHtml(i.item)}${i._overlay ? ` <span class="text-[10px] text-gray-400 uppercase tracking-wide ml-1">scaled</span>` : ""}</span>
+        </li>`).join("")}
+    </ul>`;
+}
+
+function milestoneCardHtml(milestone, label, headerCls) {
+  if (!milestone) return "";
+  const replace = milestone.items.filter(i => i.type === "replace");
+  const inspect = milestone.items.filter(i => i.type === "inspect");
+  const km = state.km;
+  const delta = km === null || isNaN(km) ? "" :
+    milestone.km === km ? "at current odometer" :
+    milestone.km < km   ? `${fmtKm(km - milestone.km)} ago` :
+                          `in ${fmtKm(milestone.km - km)}`;
+
+  return `
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+      <div class="${headerCls} px-4 py-3">
+        <div class="text-[10px] uppercase tracking-wider font-semibold opacity-90">${label}</div>
+        <div class="text-2xl font-bold font-mono mt-0.5">${fmtKm(milestone.km)}</div>
+        <div class="text-xs opacity-80 mt-0.5">${fmtMi(milestone.km)}${delta ? " · " + delta : ""}</div>
+      </div>
+      <div class="p-4 space-y-4 flex-1">
+        ${replace.length ? `
+          <section>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-rose-700 mb-2">Replace · ${replace.length}</h3>
+            <div class="space-y-2">${replace.map(replaceItemHtml).join("")}</div>
+          </section>` : ""}
+        ${inspect.length ? `
+          <section>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">Inspect · ${inspect.length}</h3>
+            ${inspectListHtml(inspect)}
+          </section>` : ""}
+        ${!replace.length && !inspect.length ? `<p class="text-sm text-gray-500 italic">No items at this milestone.</p>` : ""}
+      </div>
+    </div>`;
+}
+
+function emptyCardHtml(message) {
+  return `
+    <div class="bg-white rounded-lg border-2 border-dashed border-gray-200 p-6 text-center text-gray-500 text-sm flex items-center justify-center min-h-[120px]">
+      ${escapeHtml(message)}
+    </div>`;
 }
 
 function render() {
   const view = state.view;
   const km = state.km;
 
-  // Build the primary list — items whose inSchedules includes the current view
-  const primary = SCHEDULES.filter(s => s.inSchedules.includes(view));
-
-  // Overlay: when on CSG views, also surface Subaru inspect items with scaled intervals.
-  // Items flagged skipCsgOverlay (wear-based, time-based) don't get scaled and are excluded.
-  const overlay = (view === "subaru")
-    ? []
-    : SCHEDULES
-        .filter(s => s.type === "inspect" && s.inSchedules.includes("subaru") && !s.skipCsgOverlay)
-        .map(s => ({ ...s, intervalKm: scaleInspectKm(s.intervalKm, view), _overlay: true }));
-
-  const bucketed = { overdue: [], "coming-up": [], later: [] };
-
-  const all = [
-    ...primary.map(s => ({ ...s, _source: "primary" })),
-    ...overlay.map(s => ({ ...s, _source: "overlay" })),
-  ];
-
-  for (const item of all) {
-    const { kmUntilDue, bucket } = computeBucket(km, item.intervalKm);
-    bucketed[bucket].push({
-      kmUntilDue,
-      sourceView: item._source === "overlay" ? "subaru" : view,
-      html: rowHtml(
-        item,
-        kmUntilDue,
-        item.intervalKm,
-        item._source === "overlay" ? "subaru" : (view === "subaru" ? "subaru" : "csg"),
-      ),
-    });
+  if (km === null || isNaN(km)) {
+    $results.innerHTML = `<p class="text-center text-gray-500 py-10">Enter your current km to see what's coming up.</p>`;
+    return;
   }
 
-  for (const b of Object.keys(bucketed)) bucketed[b].sort((a, b) => a.kmUntilDue - b.kmUntilDue);
+  const milestones = getMilestones(view);
+  const { current, next } = pickCards(milestones, km);
 
-  const overlayBanner = (view !== "subaru" && overlay.length)
+  const overlayBanner = (view !== "subaru")
     ? `<p class="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-md p-3">
-         <strong>CSG's published schedule is replacement-focused.</strong> The Subaru factory inspect items are also surfaced here, with intervals scaled to CSG's faster rhythm (×${CSG_INSPECT_SCALE[view]}) so they land naturally between fluid changes.
+         <strong>CSG's published schedule is replacement-focused.</strong> Subaru factory inspect items are surfaced here at intervals scaled to CSG's faster rhythm (×${CSG_INSPECT_SCALE[view]}); wiper blades and battery aren't scaled and only appear on the Subaru view.
        </p>`
     : "";
 
-  const empty = (km === null || isNaN(km))
-    ? `<p class="text-center text-gray-500 py-10">Enter your current km to see what's coming up.</p>`
-    : "";
+  const cards = `
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      ${current
+        ? milestoneCardHtml(current, "Current / last service milestone", "bg-gray-700 text-white")
+        : emptyCardHtml("No past service milestones yet — your first service is the Next card.")}
+      ${next
+        ? milestoneCardHtml(next, "Next service milestone", "bg-blue-700 text-white")
+        : emptyCardHtml("You're past every scheduled milestone in our table.")}
+    </div>`;
 
-  $results.innerHTML = empty || [
-    overlayBanner,
-    sectionHtml("Due now / Overdue", bucketed.overdue,   "text-rose-700"),
-    sectionHtml("Coming up next",    bucketed["coming-up"], "text-amber-700"),
-    sectionHtml("Later",             bucketed.later,      "text-gray-600"),
-  ].join("");
+  $results.innerHTML = overlayBanner + cards;
 }
 
 /* =========================================================
